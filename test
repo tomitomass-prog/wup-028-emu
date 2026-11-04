@@ -1,1 +1,39 @@
+#include <assert.h>
+#include <stdint.h>
+#include <stdio.h>
+#include "classic_decode.h"
+
+static void neutral_raw(uint8_t d[6]) {
+    d[0] = 32; d[1] = 32; d[2] = 16;
+    d[3] = 0;
+    d[4] = 0xff; d[5] = 0xff;
+}
+int main(void) {
+    uint8_t d[6], out[9];
+    classic_neutral(out);
+    assert(out[0] == 0x10 && out[1] == 0 && out[2] == 0);
+    assert(out[3] == 128 && out[4] == 128 && out[5] == 128 && out[6] == 128);
+    neutral_raw(d);
+    classic_decode(d, out);
+    assert(out[1] == 0 && out[2] == 0);
+    /* A = d5 bit4 (active-low), B = bit6 */
+    d[5] &= (uint8_t)~(1u << 4); classic_decode(d, out); assert(out[1] & 0x01);
+    d[5] |= (1u << 4);
+    d[5] &= (uint8_t)~(1u << 6); classic_decode(d, out); assert(out[1] & 0x02);
+    d[5] |= (1u << 6);
+    /* + (start) = d4 bit2 */
+    d[4] &= (uint8_t)~(1u << 2); classic_decode(d, out); assert(out[2] & 0x01);
+    d[4] |= (1u << 2);
+    /* dpad right = d4 bit7, down = d4 bit6 */
+    d[4] &= (uint8_t)~(1u << 7); classic_decode(d, out); assert(out[1] & 0x20);
+    d[4] |= (1u << 7);
+    /* ZR = d5 bit2 -> GC Z */
+    d[5] &= (uint8_t)~(1u << 2); classic_decode(d, out); assert(out[2] & 0x02);
+    neutral_raw(d);
+    d[0] = 0; d[1] = 0; d[2] = 0; d[3] = 0;
+    classic_decode(d, out);
+    assert(out[3] == 0 && out[4] == 0);
+    puts("PASS: Classic -> GameCube decoder");
+    return 0;
+}
 
