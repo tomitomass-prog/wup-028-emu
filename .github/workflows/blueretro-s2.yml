@@ -1,0 +1,54 @@
+name: Build ESP32-S2 BlueRetro to WUP-028
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Select BlueRetro I2C firmware (does not modify Git repository)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f diagnostics/s2_blueretro/main.c
+          test -f diagnostics/s2_blueretro/bridge.c
+          test -f diagnostics/s2_blueretro/classic_decode.h
+          test -f src/usb_descriptors.c
+          cp diagnostics/s2_blueretro/main.c ports/esp32/main/main.c
+          cp diagnostics/s2_blueretro/bridge.c ports/esp32/main/bridge.c
+          cp diagnostics/s2_blueretro/classic_decode.h ports/esp32/main/classic_decode.h
+          cat > ports/esp32/main/CMakeLists.txt <<'CMAKE'
+          set(GCCA_CORE "${CMAKE_CURRENT_LIST_DIR}/../../../src")
+          idf_component_register(
+              SRCS "main.c" "bridge.c" "${GCCA_CORE}/usb_descriptors.c"
+              INCLUDE_DIRS "." "${GCCA_CORE}"
+              REQUIRES esp_tinyusb driver
+              PRIV_REQUIRES esp_timer
+          )
+          CMAKE
+          cat > ports/esp32/main/idf_component.yml <<'MANIFEST'
+          dependencies:
+            espressif/esp_tinyusb: "^2.0.0"
+          MANIFEST
+
+      - name: Build ESP32-S2 firmware
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.2
+          target: esp32s2
+          path: ports/esp32
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: WUP028-S2-BlueRetro-I2C-TEST
+          path: |
+            ports/esp32/build/*.bin
+            ports/esp32/build/bootloader/*.bin
+            ports/esp32/build/partition_table/*.bin
+            ports/esp32/build/flasher_args.json
+          if-no-files-found: error

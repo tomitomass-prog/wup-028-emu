@@ -1,0 +1,21 @@
+name: Test Wii Classic to GameCube decoder
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'diagnostics/s2_blueretro/classic_decode.h'
+      - 'tests/test_classic_decode.c'
+      - '.github/workflows/blueretro-decoder-test.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and execute host test
+        run: |
+          set -euo pipefail
+          gcc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -Idiagnostics/s2_blueretro tests/test_classic_decode.c -o /tmp/test_classic_decode
+          /tmp/test_classic_decode
