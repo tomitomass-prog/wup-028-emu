@@ -1,0 +1,41 @@
+name: Virtual tests - WUP-028 bridge
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'ports/esp32/main/**'
+      - 'src/**'
+      - 'tests/**'
+      - '.github/workflows/virtual-tests.yml'
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  bridge-host-tests:
+    name: Compile and test real bridge.c on Linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check required source files
+        run: |
+          test -f ports/esp32/main/bridge.c
+          test -f src/report_ids.h
+          test -f tests/test_bridge.c
+          test -f tests/tusb.h
+          test -f tests/esp_system.h
+      - name: Build bridge with TinyUSB stubs and sanitizers
+        run: |
+          gcc -std=c11 -O1 -g -Wall -Wextra -Werror \
+            -fsanitize=address,undefined -fno-omit-frame-pointer \
+            -Itests -Isrc \
+            ports/esp32/main/bridge.c tests/test_bridge.c \
+            -o /tmp/wup028-bridge-tests
+      - name: Run virtual bridge tests
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1
+        run: /tmp/wup028-bridge-tests
