@@ -1,0 +1,43 @@
+name: Build ESP32-S2 USB-only diagnostic
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use USB-only diagnostic sources
+        run: |
+          set -eu
+          test -f src/usb_descriptors.c
+          test -f src/report_ids.h
+          test -f ports/esp32/main/CMakeLists.txt
+          cp diagnostics/s2_usb_only/main.c ports/esp32/main/main.c
+          cp diagnostics/s2_usb_only/bridge.c ports/esp32/main/bridge.c
+          cat > ports/esp32/main/idf_component.yml <<'MANIFEST'
+          dependencies:
+            espressif/esp_tinyusb: "^2.0.0"
+          MANIFEST
+          echo "Diagnostic source selected; standard project files in Git remain unchanged."
+
+      - name: Build ESP32-S2
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.2
+          target: esp32s2
+          path: ports/esp32
+
+      - name: Upload firmware files
+        uses: actions/upload-artifact@v4
+        with:
+          name: WUP028-S2-USB-only-DIAGNOSTIC
+          path: |
+            ports/esp32/build/*.bin
+            ports/esp32/build/bootloader/*.bin
+            ports/esp32/build/partition_table/*.bin
+            ports/esp32/build/flasher_args.json
+          if-no-files-found: error
