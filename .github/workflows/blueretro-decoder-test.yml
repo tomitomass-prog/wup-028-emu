@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'diagnostics/s2_blueretro/classic_decode.h'
+      - 'diagnostics/s2_blueretro/**'
       - 'tests/test_classic_decode.c'
       - '.github/workflows/blueretro-decoder-test.yml'
 
@@ -12,10 +12,24 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Compile and execute host test
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify paths
+        shell: bash
         run: |
           set -euo pipefail
-          gcc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
-            -Idiagnostics/s2_blueretro tests/test_classic_decode.c -o /tmp/test_classic_decode
+          echo "Repository: $PWD"
+          test -f tests/test_classic_decode.c || { echo 'ERROR: missing tests/test_classic_decode.c'; exit 1; }
+          test -f diagnostics/s2_blueretro/classic_decode.h || { echo 'ERROR: missing diagnostics/s2_blueretro/classic_decode.h'; exit 1; }
+          ls -l tests/test_classic_decode.c diagnostics/s2_blueretro/classic_decode.h
+
+      - name: Compile and run decoder test
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcc -std=c11 -Wall -Wextra -Werror \
+            -I"$GITHUB_WORKSPACE/diagnostics/s2_blueretro" \
+            "$GITHUB_WORKSPACE/tests/test_classic_decode.c" \
+            -o /tmp/test_classic_decode
           /tmp/test_classic_decode
