@@ -1,0 +1,36 @@
+
+name: Build ESP32-S2 Wii U Adapter
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build ESP32-S2 firmware
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.2
+          target: esp32s2
+          path: ports/esp32
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: WiiU-ESP32-S2-Firmware
+          path: |
+            ports/esp32/build/*.bin
+            ports/esp32/build/bootloader/*.bin
+            ports/esp32/build/partition_table/*.bin
+            ports/esp32/build/flasher_args.json
+          if-no-files-found: error
